@@ -26,7 +26,6 @@ from tango import AttrWriteType, PipeWriteType
 # Additional import
 # PROTECTED REGION ID(OptogamaMEX.additionnal_import) ENABLED START #
 import serial
-from tango import DevState
 import time
 
 
