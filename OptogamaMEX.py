@@ -85,6 +85,12 @@ class OptogamaMEX(Device):
         label="divergence adjustment",
     )
 
+    enabled = attribute(
+        dtype="DevBoolean",
+        access=AttrWriteType.READ_WRITE,
+        label="Motors enabled",
+    )
+
     limit_low = attribute(
         dtype="DevBoolean",
     )
@@ -103,6 +109,7 @@ class OptogamaMEX(Device):
         # PROTECTED REGION ID(OptogamaMEX.init_device) ENABLED START #
         self._limit_low = False
         self._limit_high = False
+        self._enabled = True
         self._last_status = 0
         self.serial = serial.Serial(
             self.serial_port,
@@ -198,6 +205,20 @@ class OptogamaMEX(Device):
         return self._limit_high
         # PROTECTED REGION END #    //  OptogamaMEX.limit_high_read
 
+    def read_enabled(self):
+        # PROTECTED REGION ID(OptogamaMEX.enabled_read) ENABLED START #
+        """Return the enabled attribute."""
+        return self._enabled
+        # PROTECTED REGION END #    //  OptogamaMEX.enabled_read
+
+    def write_enabled(self, value):
+        # PROTECTED REGION ID(OptogamaMEX.enabled_write) ENABLED START #
+        """Set the enabled attribute."""
+        if value:
+            self.query("MEX>ON!")
+        else:
+            self.query("MEX>OFF!")
+        # PROTECTED REGION END #    //  OptogamaMEX.enabled_write
     # --------
     # Commands
     # --------
@@ -217,7 +238,8 @@ class OptogamaMEX(Device):
         :return:'DevString'
         """
         self.serial.write((f"{argin}\n").encode())
-        ans = self.serial.readline().decode()
+        ans = self.serial.readline().decode().strip()
+        print(f"query: {argin} -> {ans}", file=self.log_debug)
         return ans
 
     def get_value(self, name):
@@ -238,10 +260,10 @@ class OptogamaMEX(Device):
     def update_device_status(self):
         ans = self.query("MEX>STATUS?")
         # expected answer: DIS_COF_DIRECT_ERR_<statuscode>
-        status_prefix = "DIS_COF_DIRECT_ERR_"
-        if not ans.startswith(status_prefix):
+        status = ans.split("_")
+        if len(status) != 5:
             raise RuntimeError(f"Unexpected status reply ({ans})")
-        statuscode = int(ans[len(status_prefix):])
+        statuscode = int(status[-1])
         statusbits = [bool((statuscode >> i) & 1) for i in range(8)]
         if any(statusbits[:2]):
             self.set_state(DevState.MOVING)
@@ -250,6 +272,7 @@ class OptogamaMEX(Device):
         if any(statusbits[3:6]):
             self.set_state(DevState.FAULT)
 
+        self._enabled = status[0] == "ENA"
         self._limit_high = statusbits[7]
         self._limit_low = statusbits[6]
         # PROTECTED REGION END #    //  OptogamaMEX.query
