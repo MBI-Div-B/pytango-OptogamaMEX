@@ -99,6 +99,11 @@ class OptogamaMEX(Device):
         dtype="DevBoolean",
     )
 
+    wavelengths_available = attribute(
+        dtype=("DevDouble",),
+        label="available wavelengths",
+    )
+
     # ---------------
     # General methods
     # ---------------
@@ -110,6 +115,7 @@ class OptogamaMEX(Device):
         self._limit_low = False
         self._limit_high = False
         self._enabled = True
+        self._wavelengths = []
         self._last_status = 0
         self.serial = serial.Serial(
             self.serial_port,
@@ -119,6 +125,7 @@ class OptogamaMEX(Device):
             bytesize=serial.EIGHTBITS,
             timeout=1,
         )
+        self.get_available_wavelengths()
         # PROTECTED REGION END #    //  OptogamaMEX.init_device
 
     def always_executed_hook(self):
@@ -140,6 +147,13 @@ class OptogamaMEX(Device):
         # PROTECTED REGION ID(OptogamaMEX.delete_device) ENABLED START #
         self.serial.close()
         # PROTECTED REGION END #    //  OptogamaMEX.delete_device
+
+    def get_available_wavelengths(self):
+        """Query device for available wavelengths."""
+        ans = self.query("MEX>INFO?")
+        ans = ans.split("_")
+        self._wavelengths = [float(wl) for wl in ans[6:10] if wl != "0.0"]
+        print(f"available wavelengths: {self._wavelengths}", file=self.log_info)
 
     # ------------------
     # Attributes methods
@@ -219,6 +233,10 @@ class OptogamaMEX(Device):
         else:
             self.query("MEX>OFF!")
         # PROTECTED REGION END #    //  OptogamaMEX.enabled_write
+
+    def read_wavelengths_available(self):
+        return self._wavelengths
+
     # --------
     # Commands
     # --------
