@@ -62,11 +62,11 @@ class OptogamaMEX(Device):
     # Attributes
     # ----------
 
-    wavelength = attribute(
-        dtype="DevDouble",
-        access=AttrWriteType.READ_WRITE,
-        unit="nm",
-    )
+    # wavelength = attribute(
+    #     dtype="DevDouble",
+    #     access=AttrWriteType.READ_WRITE,
+    #     unit="nm",
+    # )
 
     magnification = attribute(
         dtype="DevDouble",
@@ -99,10 +99,10 @@ class OptogamaMEX(Device):
         dtype="DevBoolean",
     )
 
-    wavelengths_available = attribute(
-        dtype=("DevDouble",),
-        label="available wavelengths",
-    )
+    # wavelengths_available = attribute(
+    #     dtype=("DevDouble",),
+    #     label="available wavelengths",
+    # )
 
     # ---------------
     # General methods
@@ -128,6 +128,17 @@ class OptogamaMEX(Device):
         self.get_available_wavelengths()
         # PROTECTED REGION END #    //  OptogamaMEX.init_device
 
+    def initialize_dynamic_attributes(self):
+        self.wavelength = attribute(
+            name="wavelength",
+            dtype="DevEnum",
+            access=AttrWriteType.READ_WRITE,
+            enum_labels=self._wavelengths,
+            fget=self.read_wavelength,
+            fset=self.write_wavelength,
+            )
+        self.add_attribute(self.wavelength)
+
     def always_executed_hook(self):
         """Method always executed before any TANGO command is executed."""
         # PROTECTED REGION ID(OptogamaMEX.always_executed_hook) ENABLED START #
@@ -152,23 +163,25 @@ class OptogamaMEX(Device):
         """Query device for available wavelengths."""
         ans = self.query("MEX>INFO?")
         ans = ans.split("_")
-        self._wavelengths = [float(wl) for wl in ans[6:10] if wl != "0.0"]
+        self._wavelengths = [wl for wl in ans[6:10] if wl != "0.0"]
         print(f"available wavelengths: {self._wavelengths}", file=self.log_info)
 
     # ------------------
     # Attributes methods
     # ------------------
 
-    def read_wavelength(self):
+    def read_wavelength(self, attr):
         # PROTECTED REGION ID(OptogamaMEX.wavelength_read) ENABLED START #
         """Return the wavelength attribute."""
-        return self.get_value("CWL")
+        wl = str(self.get_value("CWL"))
+        attr.set_value(self._wavelengths.index(wl))
         # PROTECTED REGION END #    //  OptogamaMEX.wavelength_read
 
-    def write_wavelength(self, value):
+    def write_wavelength(self, attr):
         # PROTECTED REGION ID(OptogamaMEX.wavelength_write) ENABLED START #
         """Set the wavelength attribute."""
-        self.set_value("CWL", value)
+        print(f"write_wavelength: {attr}")
+        self.set_value("CWL", float(self._wavelengths[attr.get_write_value()]))
         # PROTECTED REGION END #    //  OptogamaMEX.wavelength_write
 
     def read_magnification(self):
