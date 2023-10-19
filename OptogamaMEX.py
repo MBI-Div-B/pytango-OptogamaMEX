@@ -125,7 +125,7 @@ class OptogamaMEX(Device):
             bytesize=serial.EIGHTBITS,
             timeout=1,
         )
-        self.get_available_wavelengths()
+        self.update_device_info()
         # PROTECTED REGION END #    //  OptogamaMEX.init_device
 
     def always_executed_hook(self):
@@ -148,12 +148,16 @@ class OptogamaMEX(Device):
         self.serial.close()
         # PROTECTED REGION END #    //  OptogamaMEX.delete_device
 
-    def get_available_wavelengths(self):
-        """Query device for available wavelengths."""
+    def update_device_info(self):
+        """Query device for available wavelengths and parameter limits."""
         ans = self.query("MEX>INFO?")
         ans = ans.split("_")
         self._wavelengths = [float(wl) for wl in ans[6:10] if wl != "0.0"]
         print(f"available wavelengths: {self._wavelengths}", file=self.log_info)
+        mag_min, mag_max = float(ans[2]), float(ans[1])
+        self.magnification.set_max_value(mag_max)
+        self.magnification.set_min_value(mag_min)
+        print(f"magnification range: {mag_min} - {mag_max}", file=self.log_info)
 
     # ------------------
     # Attributes methods
